@@ -1,203 +1,232 @@
-// ====================================
-// DATX - نظام إدارة البوابة التعليمية
-// داتكس لخدمات علوم البيانات
-// ====================================
+// ==========================================
+// إعدادات التطبيق
+// ==========================================
+// ⚠️ تأكد أن هذا الرابط هو رابط الـ CSV الخاص بك
+const DASHBOARD_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTyoz1HkTLwAtV-EJme4q3EMWXHZmQwMT-0FI2q5EQQWXj5u8VlaBRx45Iy27a-c91C88CWHSPFXp6/pub?output=csv";
 
-// ========== الإعدادات الأساسية ==========
-// ⚠️ ضع رابط CSV من Google Sheets هنا
-const SHEET_CSV_URL = src="https://docs.google.com/spreadsheets/d/e/2PACX-1vS2GO8qxgiiP84_ovwWnPBQzK2DkrQTUZ6q6P6f2LTSbDEsa1ZaWXl8JZw-i6sW5NfBCRg4BuQbtRQo/pubhtml?widget=true&amp;headers=false"
+// متغيرات النظام
+let appData = {};
+let popupWindow = null;
+let monitorInterval = null;
 
-// ========== جلب البيانات من Google Sheets ==========
-async function fetchDashboard() {
+// 1. التشغيل عند البداية
+document.addEventListener('DOMContentLoaded', () => {
+    // إخفاء السبلاش بعد 2.5 ثانية
+    setTimeout(() => {
+        const splash = document.getElementById('splash-screen');
+        if (splash) {
+            splash.style.opacity = '0';
+            setTimeout(() => splash.remove(), 500);
+        }
+    }, 2500);
+
+    fetchData(); // جلب البيانات
+    
+    // تحديث تلقائي كل 30 ثانية
+    setInterval(fetchData, 30000); 
+});
+
+// 2. جلب بيانات الداشبورد (مع كسر الكاش)
+async function fetchData() {
     try {
-        // عرض حالة التحميل
-        updateStatusText('جاري الاتصال بلوحة التحكم...', 'loading');
+        // نضيف رقم عشوائي للرابط لإجبار المتصفح على جلب نسخة جديدة
+        const cacheBuster = "&nocache=" + Math.random();
+        const response = await fetch(DASHBOARD_CSV + cacheBuster);
         
-        // جلب البيانات
-        const response = await fetch(SHEET_CSV_URL);
         if (!response.ok) {
-            throw new Error('فشل الاتصال بالخادم');
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        const data = await response.text();
+        const text = await response.text();
         
-        // تحويل CSV إلى كائن JavaScript
-        parseCSVData(data);
-        
-        // تحديث واجهة المستخدم
+        parseCSV(text);
         updateUI();
-        
-        // تحديث حالة النجاح
-        updateStatusText('تم التحديث ✅', 'success');
-        
     } catch (error) {
-        console.error('خطأ في جلب البيانات:', error);
-        updateStatusText('خطأ في الاتصال! ⚠️', 'error');
+        console.error("Connection Error", error);
+        const statusText = document.getElementById('attend-status-text');
+        const btn = document.getElementById('btn-attendance');
         
-        // إظهار الواجهة حتى مع وجود خطأ
-        hideLoader();
-        showContainer('home');
+        if (statusText) {
+            // عرض رسالة الخطأ الحقيقية للمساعدة في الحل
+            statusText.innerText = "خطأ في الاتصال: " + error.message;
+            statusText.style.color = "red";
+            statusText.style.direction = "ltr"; // لعرض الخطأ الإنجليزي بشكل صحيح
+        }
+        
+        if (btn) {
+            btn.classList.add('btn-disabled');
+            btn.innerText = "⚠️ النظام متوقف";
+        }
     }
 }
 
-// ========== تحليل بيانات CSV ==========
-function parseCSVData(csvText) {
-    const rows = csvText.split('\n');
+// 3. تحليل ملف CSV (نسخة محسنة وآمنة 🛡️)
+function parseCSV(csvText) {
+    if (!csvText) return;
     
+    const rows = csvText.split('\n');
     rows.forEach(row => {
-        // تقسيم الصف إلى أعمدة
+        // تخطي الأسطر الفارغة تماماً
+        if (!row || row.trim() === '') return;
+
         const cols = row.split(',');
-        
-        if (cols.length >= 2) {
-            // تنظيف المفتاح والقيمة من علامات التنصيص والمسافات
+
+        if(cols.length >= 2) {
+            // تنظيف المفتاح (العمود A)
             const key = cols[0].replace(/"/g, '').trim();
-            // دمج باقي الأعمدة في حال وجود فواصل في الرابط
-            const value = cols.slice(1).join(',').replace(/"/g, '').trim();
             
-            // تخزين البيانات
-            if (key && value) {
-                appData[key] = value;
+            // تنظيف القيمة (العمود B فقط) مع التأكد من وجودها
+            // استخدام (cols[1] || "") يمنع الخطأ إذا كان العمود فارغاً
+            let val = (cols[1] || "").replace(/"/g, '').trim(); 
+            
+            if (key) {
+                appData[key] = val;
             }
         }
     });
 }
 
-// ========== تحديث واجهة المستخدم ==========
+// 4. تحديث الواجهة (القلب النابض)
 function updateUI() {
-    // إخفاء شاشة التحميل
-    hideLoader();
+    // === تحديث زر التحضير ===
+    const btn = document.getElementById('btn-attendance');
+    const msg = document.getElementById('attend-status-text');
+    const dot = document.getElementById('connection-dot');
     
-    // إظهار الصفحة الرئيسية
-    showContainer('home');
+    // قراءة الحالة وتنظيفها
+    let rawStatus = appData['attendance_status'];
+    let status = rawStatus ? rawStatus.toString().toUpperCase().trim() : "CLOSED";
     
-    // تحديث الإعلانات
-    updateAnnouncement();
-    
-    // تحديث حالة الحضور
-    updateAttendanceStatus();
-    
-    // تحديث روابط الخدمات
-    updateServiceLinks();
-}
-
-// ========== تحديث الإعلانات ==========
-function updateAnnouncement() {
-    const announcementBox = document.getElementById('announcement');
-    const announcementText = appData['announcement_text'];
-    
-    if (announcementText && announcementText !== 'لا توجد إعلانات حالياً') {
-        announcementBox.innerHTML = '📢 ' + announcementText;
-        announcementBox.classList.add('show');
+    // التحقق المرن (يقبل OPEN, Open, open, TRUE, ON)
+    if (status === 'OPEN' || status === 'TRUE' || status === 'ON') {
+        // الحالة: مفتوح ✅
+        if (btn) {
+            btn.classList.remove('btn-disabled');
+            btn.innerHTML = "🚀 سجّل حضورك الآن";
+            btn.onclick = openAttendance; // تفعيل الضغط
+        }
+        
+        if (msg) {
+            msg.innerHTML = "● البوابة مفتوحة الآن";
+            msg.style.color = "#10b981"; // أخضر
+            msg.style.direction = "rtl";
+        }
+        
+        if(dot) dot.style.background = "#10b981";
     } else {
-        announcementBox.classList.remove('show');
+        // الحالة: مغلق 🔒
+        if (btn) {
+            btn.classList.add('btn-disabled');
+            btn.innerHTML = "🔒 التحضير مغلق";
+            btn.onclick = null; // تعطيل الضغط
+        }
+        
+        if (msg) {
+            msg.innerHTML = "● بانتظار فتح النظام...";
+            msg.style.color = "#64748b"; // رمادي
+            msg.style.direction = "rtl";
+        }
+        
+        if(dot) dot.style.background = "#ef4444"; // أحمر
+    }
+
+    // === تحديث الروابط الأخرى ===
+    if(appData['assignment_link']) {
+        const assignBtn = document.getElementById('btn-assignment');
+        if(assignBtn) assignBtn.href = appData['assignment_link'];
+    }
+    
+    if(appData['certificate_link']) {
+        const certBtn = document.getElementById('btn-cert');
+        if(certBtn) certBtn.href = appData['certificate_link'];
+    }
+    
+    if(appData['powerbi_link']) {
+        const biBtn = document.getElementById('btn-powerbi');
+        if(biBtn) biBtn.href = appData['powerbi_link'];
+    }
+    
+    // === تحديث شريط الإعلانات ===
+    const announceBar = document.getElementById('announcement-bar');
+    const announceTextEl = document.getElementById('announcement-text');
+    const announceText = appData['announcement_text'];
+    
+    // التحقق أن النص ليس فارغاً وليس نص الملاحظات
+    if (announceBar && announceText && announceText.length > 2 && !announceText.includes("المتحرك")) {
+        announceBar.classList.remove('hidden');
+        if(announceTextEl) {
+            announceTextEl.innerText = announceText;
+        }
+    } else if (announceBar) {
+        announceBar.classList.add('hidden');
     }
 }
 
-// ========== تحديث حالة الحضور ==========
-function updateAttendanceStatus() {
-    const attendBtn = document.getElementById('btn-attendance');
-    const attendMsg = document.getElementById('attend-msg');
-    const attendanceStatus = appData['attendance_status'];
-    const attendanceLink = appData['attendance_link'];
-    
-    if (attendanceStatus === 'OPEN' && attendanceLink) {
-        // الحضور مفتوح
-        attendBtn.classList.remove('closed');
-        attendBtn.innerHTML = '🚀 سجّل حضورك الآن';
-        attendBtn.href = attendanceLink;
-        attendMsg.innerHTML = '<span class="status-indicator open"></span> البوابة مفتوحة';
-    } else {
-        // الحضور مغلق
-        attendBtn.classList.add('closed');
-        attendBtn.innerHTML = '🔒 التحضير مغلق';
-        attendBtn.href = '#';
-        attendMsg.innerHTML = '<span class="status-indicator closed"></span> البوابة مغلقة حالياً';
+// دالة لإغلاق الإعلان
+function closeAnnouncement() {
+    const announceBar = document.getElementById('announcement-bar');
+    if (announceBar) {
+        announceBar.classList.add('hidden');
     }
 }
 
-// ========== تحديث روابط الخدمات ==========
-function updateServiceLinks() {
-    // رابط الواجبات
-    const assignmentLink = appData['assignment_link'];
-    if (assignmentLink) {
-        document.getElementById('btn-assignment').href = assignmentLink;
-    }
+// 5. فتح نافذة التحضير
+function openAttendance() {
+    const scriptUrl = appData['attendance_link']; 
     
-    // رابط الشهادات
-    const certificateLink = appData['certificate_link'];
-    if (certificateLink) {
-        document.getElementById('btn-cert').href = certificateLink;
+    if (!scriptUrl || scriptUrl.length < 5) {
+        alert("تنبيه: رابط التحضير غير موجود في لوحة التحكم (Google Sheet)");
+        return;
     }
+
+    // فتح نافذة منبثقة احترافية
+    const w = 500, h = 650;
+    const left = (screen.width/2)-(w/2);
+    const top = (screen.height/2)-(h/2);
     
-    // رابط Power BI
-    const powerbiLink = appData['powerbi_link'];
-    if (powerbiLink) {
-        document.getElementById('btn-powerbi').href = powerbiLink;
+    popupWindow = window.open(scriptUrl, "Attendance", `width=${w},height=${h},top=${top},left=${left},scrollbars=yes,resizable=yes`);
+    
+    // إظهار نافذة المراقبة داخل الموقع
+    const modal = document.getElementById('monitor-modal');
+    if (modal) modal.classList.add('active');
+    
+    startMonitoring();
+}
+
+// 6. مراقبة النافذة
+function startMonitoring() {
+    if (monitorInterval) clearInterval(monitorInterval);
+    
+    monitorInterval = setInterval(() => {
+        if (popupWindow && popupWindow.closed) {
+            // إذا أغلقت النافذة (يعني الطالب انتهى أو أغلقها)
+            clearInterval(monitorInterval);
+            const modal = document.getElementById('monitor-modal');
+            if (modal) modal.classList.remove('active');
+            showToast();
+        }
+    }, 1000);
+}
+
+function forceCloseMonitor() {
+    const modal = document.getElementById('monitor-modal');
+    if (modal) modal.classList.remove('active');
+    clearInterval(monitorInterval);
+}
+
+function showToast() {
+    const t = document.getElementById('toast');
+    if (t) {
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 4000);
     }
 }
 
-// ========== دوال مساعدة للواجهة ==========
-function hideLoader() {
-    const loader = document.getElementById('loader');
-    if (loader) {
-        loader.style.display = 'none';
-    }
-}
-
-function showContainer(containerId) {
-    const container = document.getElementById(containerId);
-    if (container) {
-        container.classList.add('active');
-    }
-}
-
-function updateStatusText(text, status = 'normal') {
-    const statusElement = document.getElementById('status-text');
-    if (statusElement) {
-        statusElement.textContent = text;
-    }
-}
-
-// ========== التنقل بين الصفحات ==========
-function switchTab(tabId, element) {
-    // إخفاء جميع الحاويات
-    document.querySelectorAll('.container').forEach(container => {
-        container.classList.remove('active');
-    });
+// 7. التنقل بين التبويبات
+function switchTab(tabId, el) {
+    document.querySelectorAll('.view-section').forEach(d => d.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
     
-    // إظهار الحاوية المطلوبة
-    const targetContainer = document.getElementById(tabId);
-    if (targetContainer) {
-        targetContainer.classList.add('active');
-    }
-    
-    // تحديث حالة عناصر التنقل
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    if (element) {
-        element.classList.add('active');
-    }
-}
-
-// ========== تهيئة التطبيق ==========
-function initializeApp() {
-    console.log('🚀 تم تشغيل بوابة DATX');
-    
-    // جلب البيانات من Google Sheets
-    fetchDashboard();
-    
-    // تحديث البيانات كل 5 دقائق
-    setInterval(fetchDashboard, 5 * 60 * 1000);
-}
-
-// ========== بدء التطبيق عند تحميل الصفحة ==========
-document.addEventListener('DOMContentLoaded', initializeApp);
-
-// يمكن أيضاً استخدام هذا للتوافق مع المتصفحات القديمة
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
-} else {
-    initializeApp();
+    document.querySelectorAll('.nav-item').forEach(d => d.classList.remove('active'));
+    el.classList.add('active');
 }
