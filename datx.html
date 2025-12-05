@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DATX - داتكس لخدمات علوم البيانات | بوابة تعليمية احترافية">
+    <meta name="keywords" content="DATX, داتكس, علوم البيانات, Data Science, تدريب, دورات">
+    <meta name="author" content="DATX - Datx For Data Science Services">
+
+    <title>DATX - داتكس | بوابة خدمات علوم البيانات</title>
+
+    <!-- الخطوط العربية -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Cairo:wght@300;400;600;700;900&display=swap"
+        rel="stylesheet">
+
+    <!-- ملف التنسيقات الخارجي -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+    <!-- الرأسية مع الشعار -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-container">
+                <img src="logo.png" alt="DATX Logo" class="logo">
+                <h1>DATX | داتكس</h1>
+            </div>
+            <p class="tagline">داتكس لخدمات علوم البيانات<br>Not just training, but sharing real-life experience</p>
+            <p id="status-text" class="status-text">جاري الاتصال بلوحة التحكم...</p>
+        </div>
+    </header>
+
+    <!-- صندوق الإعلانات -->
+    <div id="announcement" class="alert-box"></div>
+
+    <!-- شاشة التحميل -->
+    <div id="loader">
+        <div class="loader-spinner"></div>
+        <p>جاري جلب البيانات الحديثة... ⏳</p>
+    </div>
+
+    <!-- الصفحة الرئيسية -->
+    <main id="home" class="container">
+        <div class="card">
+            <h3>⏰ التحضير اليومي</h3>
+            <p id="attend-msg">حالة النظام: غير معروفة</p>
+            <a id="btn-attendance" href="#" class="btn closed">جاري التحميل...</a>
+        </div>
+    </main>
+
+    <!-- صفحة الواجبات -->
+    <section id="tasks" class="container">
+        <div class="card">
+            <h3>📁 رفع التكاليف</h3>
+            <p>ارفع ملفات الحل الخاصة بك من خلال الرابط أدناه.</p>
+            <a id="btn-assignment" href="#" target="_blank" class="btn">رابط الواجب</a>
+        </div>
+    </section>
+
+    <!-- صفحة الخدمات -->
+    <section id="services" class="container">
+        <div class="card">
+            <h3>🎓 الشهادات</h3>
+            <p>احصل على شهادتك المعتمدة من DATX</p>
+            <a id="btn-cert" href="#" target="_blank" class="btn warning">طلب شهادة</a>
+        </div>
+        <div class="card">
+            <h3>📊 رخصة Power BI</h3>
+            <p>احصل على حساب Power BI للتدريب العملي</p>
+            <a id="btn-powerbi" href="#" target="_blank" class="btn success">طلب حساب</a>
+        </div>
+    </section>
+
+    <!-- شريط التنقل السفلي -->
+    <nav class="nav">
+        <div class="nav-item active" onclick="switchTab('home', this)">
+            <span class="nav-icon">🏠</span>
+            الرئيسية
+        </div>
+        <div class="nav-item" onclick="switchTab('tasks', this)">
+            <span class="nav-icon">⚡</span>
+            الواجبات
+        </div>
+        <div class="nav-item" onclick="switchTab('services', this)">
+            <span class="nav-icon">🛒</span>
+            الخدمات
+        </div>
+    </nav>
+
+    <!-- ملف JavaScript الخارجي -->
+    <script src="script.js"></script>
+
+</body>
+
+</html>
